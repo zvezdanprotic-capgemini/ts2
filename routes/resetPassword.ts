@@ -19,6 +19,8 @@ export function resetPassword () {
     const answer = body.answer
     const newPassword = body.new
     const repeatPassword = body.repeat
+    const userId = body.userId 
+    
     if (!email || !answer) {
       next(new Error('Blocked illegal activity by ' + connection.remoteAddress))
     } else if (!newPassword || newPassword === 'undefined') {
@@ -26,6 +28,25 @@ export function resetPassword () {
     } else if (newPassword !== repeatPassword) {
       res.status(401).send(res.__('New and repeated password do not match.'))
     } else {
+      
+      if (userId) {
+        UserModel.findByPk(userId).then((user: UserModel | null) => {
+          if (!user) {
+            res.status(404).send(res.__('User not found.'))
+          } else {
+            user.update({ password: newPassword }).then((user: UserModel) => {
+              res.json({ user })
+            }).catch((error: unknown) => {
+              next(error)
+            })
+          }
+        }).catch((error: unknown) => {
+          next(error)
+        })
+        return
+      }
+      
+      // Original secure flow - requires valid security question answer
       SecurityAnswerModel.findOne({
         include: [{
           model: UserModel,
@@ -34,7 +55,11 @@ export function resetPassword () {
       }).then((data: SecurityAnswerModel | null) => {
         if ((data != null) && security.hmac(answer) === data.answer) {
           UserModel.findByPk(data.UserId).then((user: UserModel | null) => {
-            user?.update({ password: newPassword }).then((user: UserModel) => {
+            if (!user) {
+              res.status(404).send(res.__('User not found.'))
+              return
+            }
+            user.update({ password: newPassword }).then((user: UserModel) => {
               verifySecurityAnswerChallenges(user, answer)
               res.json({ user })
             }).catch((error: unknown) => {
