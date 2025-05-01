@@ -624,7 +624,7 @@ restoreOverwrittenFilesWithOriginals().then(() => {
 
   /* File Serving */
   app.get('/the/devs/are/so/funny/they/hid/an/easter/egg/within/the/easter/egg', serveEasterEgg())
-  app.get('/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us', servePremiumContent())
+  app.get('/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc-to-us', servePremiumContent())
   app.get('/we/may/also/instruct/you/to/refuse/all/reasonably/necessary/responsibility', servePrivacyPolicyProof())
 
   /* Route for dataerasure page */
@@ -632,6 +632,17 @@ restoreOverwrittenFilesWithOriginals().then(() => {
 
   /* Route for redirects */
   app.get('/redirect', performRedirect())
+
+
+  app.get('/redirect', (req: Request, res: Response) => {
+    const target = req.query.to as string
+    if (target) {
+      console.log('Redirecting to:', target)
+      res.redirect(target)
+    } else {
+      res.redirect('/')
+    }
+  })
 
   /* Routes for promotion video page */
   app.get('/promotion', promotionVideo())

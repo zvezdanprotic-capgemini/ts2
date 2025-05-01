@@ -32,8 +32,10 @@ export function updateUserProfile () {
           (req.headers.referer?.includes('://htmledit.squarefree.com'))) &&
           req.body.username !== user.username
       })
+      
 
       const savedUser = await user.update({ username: req.body.username })
+      
       const userWithStatus = utils.queryResultToJson(savedUser)
       const updatedToken = security.authorize(userWithStatus)
       security.authenticatedUsers.put(updatedToken, userWithStatus)

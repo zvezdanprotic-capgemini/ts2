@@ -60,8 +60,7 @@ const loadWeb3SandboxModule = async () => {
 const routes: Routes = [
   { // vuln-code-snippet neutral-line adminSectionChallenge
     path: 'administration', // vuln-code-snippet vuln-line adminSectionChallenge
-    component: AdministrationComponent, // vuln-code-snippet neutral-line adminSectionChallenge
-    canActivate: [AdminGuard] // vuln-code-snippet neutral-line adminSectionChallenge
+    component: AdministrationComponent // vuln-code-snippet neutral-line adminSectionChallenge
   }, // vuln-code-snippet neutral-line adminSectionChallenge
   {
     path: 'accounting',
