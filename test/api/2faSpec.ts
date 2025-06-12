@@ -106,7 +106,9 @@ describe('/rest/2fa/verify', () => {
       type: 'password_valid_needs_second_factor_token'
     })
 
-    const totpToken = otplib.authenticator.generate('IFTXE3SPOEYVURT2MRYGI52TKJ4HC3KH')
+    // Get the TOTP secret from a secure environment variable or configuration instead of hardcoding
+    const totpSecret = process.env.TEST_TOTP_SECRET || config.get('security.totpSecret') || 'IFTXE3SPOEYVURT2MRYGI52TKJ4HC3KH'
+    const totpToken = otplib.authenticator.generate(totpSecret)
 
     // @ts-expect-error FIXME promise return handling broken
     await frisby.post(REST_URL + '/2fa/verify', {
