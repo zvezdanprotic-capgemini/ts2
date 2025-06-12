@@ -12,6 +12,8 @@ import * as utils from '../lib/utils'
 import { challenges } from '../data/datacache'
 import * as otplib from 'otplib'
 import * as security from '../lib/insecurity'
+import { encryptTotpSecret, decryptTotpSecret } from '../config/security-config'
+import logger from '../lib/logger'
 
 otplib.authenticator.options = {
   // Accepts tokens as valid even when they are 30sec to old or to new
@@ -34,9 +36,13 @@ export async function verify (req: Request, res: Response) {
       throw new Error('No such user found!')
     }
 
-    const isValid = otplib.authenticator.check(totpToken, user.totpSecret)
+    // Decrypt the stored TOTP secret before verification
+    const decryptedSecret = user.totpSecret ? decryptTotpSecret(user.totpSecret) : ''
+    const isValid = otplib.authenticator.check(totpToken, decryptedSecret)
 
     const plainUser = utils.queryResultToJson(user)
+    // Store decrypted secret in memory for current session
+    plainUser.totpSecret = decryptedSecret
 
     if (!isValid) {
       return res.status(401).send()
@@ -52,6 +58,8 @@ export async function verify (req: Request, res: Response) {
 
     res.json({ authentication: { token, bid: basket.id, umail: user.email } })
   } catch (error) {
+    // Generic error response to prevent information leakage
+    logger.error(`Error during 2FA verification: ${error instanceof Error ? error.message : 'Unknown error'}`)
     res.status(401).send()
   }
 }
@@ -132,12 +140,19 @@ export async function setup (req: Request, res: Response) {
       throw new Error('No such user found!')
     }
 
-    userModel.totpSecret = secret
+    // Encrypt TOTP secret before storing it in the database
+    userModel.totpSecret = encryptTotpSecret(secret)
     await userModel.save()
-    security.authenticatedUsers.updateFrom(req, utils.queryResultToJson(userModel))
+    
+    // Create a safe copy of the user model for caching (with plaintext totpSecret for current session)
+    const userJson = utils.queryResultToJson(userModel)
+    userJson.totpSecret = secret // Keep plaintext version in memory for this session only
+    security.authenticatedUsers.updateFrom(req, userJson)
 
     res.status(200).send()
   } catch (error) {
+    // Generic error response to prevent information leakage
+    logger.error(`Error setting up 2FA: ${error.message}`)
     res.status(401).send()
   }
 }
@@ -165,12 +180,18 @@ export async function disable (req: Request, res: Response) {
       throw new Error('No such user found!')
     }
 
+    // Clear TOTP secret in database
     userModel.totpSecret = ''
     await userModel.save()
-    security.authenticatedUsers.updateFrom(req, utils.queryResultToJson(userModel))
+    
+    // Update user in memory cache
+    const userJson = utils.queryResultToJson(userModel)
+    security.authenticatedUsers.updateFrom(req, userJson)
 
     res.status(200).send()
   } catch (error) {
+    // Generic error response to prevent information leakage
+    logger.error(`Error disabling 2FA: ${error instanceof Error ? error.message : 'Unknown error'}`)
     res.status(401).send()
   }
 }
